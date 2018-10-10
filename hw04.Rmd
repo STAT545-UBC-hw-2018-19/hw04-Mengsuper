@@ -16,7 +16,8 @@ library(knitr)
 library(gapminder)
 ```
 
-### Data Reshaping Prompts (and relationship to aggregation)
+Data Reshaping Prompts (and relationship to aggregation)
+---
 
 #### Activity # 2 
 
@@ -27,8 +28,8 @@ Take advantage of this new data shape to scatterplot life expectancy for one cou
 For this task, I will take the life expectancy of Canada, China, and United States. In order to create the desired table for task, we need reshape the tibble to put each of the country into a column. This can be accomplished by the `spread()` function, which will make the chosen keys (country) into columns and put the values (life expectancy) into the rows.
 
 ```{r}
-spreadLifeExp <- gapminder %>% 
-  filter(country == "Canada" | country == "China" | country == "United States") %>% 
+spreadLifeExp <- gapminder %>% # save this dataframe to spreadLifeExp
+  filter(country == "Canada" | country == "China" | country == "United States") %>% # select three countries
   select(country, year, lifeExp) %>% 
   spread(key=country, value=lifeExp) 
 
@@ -54,10 +55,144 @@ ggplot(aes(x = Canada, y = `United States`)) +
     geom_point()
 ```
 
-### Join Prompts (join, merge, look up)
+For a better comparision between three countries, we can plot the life expectancy changing over the year. 
+```{r}
+spreadLifeExp %>% 
+  gather(country, lifeExp, 2:4) %>%  # gather the lifeExp from column 2 to 4
+  ggplot(aes(year, lifeExp, color = country)) +
+  geom_line() + 
+  geom_point(aes(shape = country))
+```
+
+As we can see from the above plot, the life expectancy changed rapidly for China over the past few decades. US and Canada have very steady increasing trend. 
+
+Join Prompts (join, merge, look up)
+---
 
 #### Activity # 1
 
 Create a second data frame, complementary to Gapminder. Join this with (part of) Gapminder using a dplyr join function and make some observations about the process and result. Explore the different types of joins. Examples of a second data frame you could build:
 One row per country, a country variable and one or more variables with extra info, such as language spoken, NATO membership, national animal, or capitol city.
 One row per continent, a continent variable and one or more variables with extra info, such as northern versus southern hemisphere.
+
+For this task, I have tested 4 join functions (`left_join`, `right_join`, `inner_join`, `full_join`). I created another dataframe `national_animal` with three columns `country`, `capital`, `animal` (national animal) for four countries (`China`, `India`, `Japan`, and `Singapore`). In order to better understand the function of these join methods (and also keep the document clean and concise), I fetch some Asian countries data (instead of all countries or all asian countries, which may have way more information than I actually need and want to show) from `gapminder` which include both the countries I selected above and also some other countries (`Indonesia` and `Thailand`). More importantly, I removed the `Singapore` from this dataframe. I save this dataframe to `asianCountries`. 
+
+```{r}
+# create national_animal dataframe
+national_animal <-  data.frame(
+  country = c("China", "India", "Japan","Singapore"),
+  capital = c("Beijing", "New Delhi", "Tokyo", "Singapore"),
+  animal = c("Panda", "Bengal tiger", "Green pheasant", "Lion")
+)
+national_animal %>% 
+    knitr::kable()
+```
+
+
+```{r}
+# only grap some countries for comparison
+asianCountries <- gapminder %>%
+  filter(country %in% c("China", "India", "Japan", "Indonesia", "Thailand"))
+ 
+asianCountries %>%  
+knitr::kable()
+```
+
+### `left_join`
+First, let's discuss the `left_join` function. For example, `left_join(a_tibble, b_tibble, by = c("id_col1"))`, will takes all values from `a_tibble`, and looks for matches in the second table `b_tibble`. If it finds a match, it adds the data from the second table. If not, it adds missing values `NA`. We can do `left_join` the `national_animal` data frame to the `asianCountries` dataframe. We can see that `Indonesia` and `Thailand` doesn't have values for the `capital` and `animal` columns. 
+```{r}
+left_join(asianCountries, national_animal, by="country") %>% 
+   knitr::kable()
+```
+
+If we do `left_join` the `asianCountries` dataframe to `national_animal` data frame. `Singapore` will have no information about other columns except for the `capital` and `animal`. Because `left_join` will only matach the `country` in left dataframe. 
+
+```{r}
+left_join(national_animal, asianCountries, by="country") %>% 
+   knitr::kable()
+```
+
+### `right_join`
+
+`right_join` has the opposite effect, compared to `left_join`.  For example, `right_join(a_tibble, b_tibble, by = c("id_col1"))`, will takes all values from `b_tibble`, and looks for matches in the table `a_tibble`. If it finds a match, it adds the data from the first table. If not, it adds missing values `NA`.
+
+
+```{r}
+right_join(asianCountries, national_animal, by="country") %>% 
+   knitr::kable()
+```
+
+This result has the same content with `left_join(national_animal, asianCountries, by="country")` (column orders are different). 
+
+```{r}
+right_join(national_animal, asianCountries, by="country") %>% 
+   knitr::kable()
+```
+
+Similarly, this result has the same content with `left_join(asianCountries, national_animal, by="country")` (column orders are different). 
+
+### `inner_join`
+
+`inner_join` (e.g. `inner_join(a, b, by="x")`) will retain only rows in both sets `a` to `b` by matching "x" variable. So `inner_join(asianCountries, national_animal, by="country")` and `inner_join(national_animal, asianCountries, by="country")` actually have the almost same output (different column orders).
+
+```{r}
+inner_join(asianCountries, national_animal, by="country") %>% 
+   knitr::kable()
+```
+```{r}
+inner_join(national_animal, asianCountries, by="country") %>% 
+   knitr::kable()
+```
+
+### `full_join`
+
+`full_join` (e.g. `full_join(a, b, by="x")`) will retain all values, all rows of `a` to `b` by matching "x" variable.
+
+```{r}
+full_join(asianCountries, national_animal, by="country") %>% 
+   knitr::kable()
+```
+
+```{r}
+full_join(national_animal, asianCountries, by="country") %>% 
+   knitr::kable()
+```
+
+Only the columns order are differnt for these two tables. 
+
+#### Activity # 3
+Explore the base R function merge(), which also does joins. Compare and contrast with dplyr joins.
+Explore the base R function match(), which is related to joins and merges, but is really more of a “table lookup”. Compare and contrast with a true join/merge.
+
+### `merge`
+
+By default, the `merge` function coerces its arguements to dataframes, and the dataframes are merged on the columns with names they both have.
+
+```{r}
+merge(asianCountries, national_animal, by="country") %>% 
+   knitr::kable()
+```
+
+Then, switch the order of two dataframe.
+
+```{r}
+merge(national_animal, asianCountries, by="country") %>% 
+   knitr::kable()
+```
+
+The merge results are the same with `inner_join` function.
+
+### `merge`
+
+`match` method returns a vector of the positions of (first) matches of its first argument in its second.
+
+```{r}
+match(national_animal$country, asianCountries$country) %>% 
+  knitr::kable()
+```
+
+Only the first 3 countries are matched in `national_animal` and `asianCountries`, so the result is just a vector of indexs. Similarly, we can look the match in `asianCountries`. 
+```{r}
+match(asianCountries$country, national_animal$country) %>% 
+  knitr::kable()
+```
